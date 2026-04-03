@@ -1536,6 +1536,52 @@ float NPC::getVehicleHealth() const
 	return isInVehicle() ? vehicleHealth_ : 0.0f;
 }
 
+void NPC::setVehiclePosition(const Vector3& position, bool immediateUpdate)
+{
+	if (!isInVehicle())
+	{
+		return;
+	}
+
+	vehicle_->setPosition(position);
+	position_ = position;
+
+	if (immediateUpdate)
+	{
+		if (vehicleSeat_ == 0)
+		{
+			sendDriverSync();
+		}
+		else
+		{
+			sendPassengerSync();
+		}
+	}
+}
+
+void NPC::setVehicleRotation(const GTAQuat& rotation, bool immediateUpdate)
+{
+	if (!isInVehicle())
+	{
+		return;
+	}
+
+	vehicle_->setRotation(rotation);
+	rotation_ = rotation;
+
+	if (immediateUpdate)
+	{
+		if (vehicleSeat_ == 0)
+		{
+			sendDriverSync();
+		}
+		else
+		{
+			sendPassengerSync();
+		}
+	}
+}
+
 void NPC::setVehicleHydraThrusters(int direction)
 {
 	if (isInVehicle())

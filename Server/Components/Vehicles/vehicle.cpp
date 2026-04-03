@@ -66,6 +66,18 @@ void Vehicle::streamInForPlayer(IPlayer& player)
 	streamIn.BodyColour2 = bodyColour2;
 	PacketHelper::send(streamIn, player);
 
+	// BR-compatible legacy stream-in payload does not carry paintjob in a field
+	// that this client applies reliably, so enforce it explicitly after create.
+	if (paintJob > 0 && player.getClientVersion() == ClientVersion::ClientVersion_SAMP_037)
+	{
+		NetCode::RPC::SCMEvent paintRPC;
+		paintRPC.PlayerID = INVALID_PLAYER_ID;
+		paintRPC.EventType = VehicleSCMEvent_SetPaintjob;
+		paintRPC.VehicleID = poolID;
+		paintRPC.Arg1 = paintJob - 1;
+		PacketHelper::send(paintRPC, player);
+	}
+
 	// Some legacy clients may create vehicle at (0,0,0) from custom WorldVehicleAdd format.
 	// Force authoritative position right after stream-in.
 	NetCode::RPC::SetVehiclePosition setPos;

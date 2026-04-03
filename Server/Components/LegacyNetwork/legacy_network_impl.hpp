@@ -13,6 +13,7 @@
 #include <bitstream.hpp>
 #include <core.hpp>
 #include <glm/glm.hpp>
+#include <netcode.hpp>
 #include <map>
 #include <network.hpp>
 #include <raknet/BitStream.h>
@@ -301,11 +302,66 @@ public:
 			}
 		}
 
+		NetworkBitStream compatBS;
+		NetworkBitStream* sendBS = &bs;
+
+		// Legacy 0.3.7 clients in this branch expect a compact PlayerStreamIn (RPC 32)
+		// payload and can crash when skills/custom fields are present.
+		if (id == NetCode::RPC::PlayerStreamIn::PacketID && peer.getClientVersion() == ClientVersion::ClientVersion_SAMP_037)
+		{
+			NetworkBitStream in(bs.GetData(), bitsToBytes(bs.GetNumberOfBitsUsed()), false);
+			in.SetWriteOffset(bs.GetNumberOfBitsUsed());
+
+			uint16_t playerId = 0;
+			uint8_t team = 0;
+			uint32_t skin = 0;
+			Vector3 pos {};
+			float angle = 0.0f;
+			uint32_t colour = 0;
+			uint8_t fightingStyle = 4;
+
+			const int saveOffset = in.GetReadOffset();
+			bool parsed = in.readUINT16(playerId)
+				&& in.readUINT8(team)
+				&& in.readUINT32(skin)
+				&& in.readVEC3(pos)
+				&& in.readFLOAT(angle)
+				&& in.readUINT32(colour)
+				&& in.readUINT8(fightingStyle);
+
+			// Fallback parse when payload includes CustomSkin (03DL layout).
+			if (!parsed)
+			{
+				uint32_t customSkin = 0;
+				in.SetReadOffset(saveOffset);
+				parsed = in.readUINT16(playerId)
+					&& in.readUINT8(team)
+					&& in.readUINT32(skin)
+					&& in.readUINT32(customSkin)
+					&& in.readVEC3(pos)
+					&& in.readFLOAT(angle)
+					&& in.readUINT32(colour)
+					&& in.readUINT8(fightingStyle);
+			}
+
+			if (parsed)
+			{
+				compatBS.writeUINT16(playerId);
+				compatBS.writeUINT8(team);
+				compatBS.writeUINT32(skin);
+				compatBS.writeVEC3(pos);
+				compatBS.writeFLOAT(angle);
+				compatBS.writeUINT32(colour);
+				compatBS.writeUINT8(fightingStyle);
+				sendBS = &compatBS;
+			}
+		}
+
 		const PeerNetworkData::NetworkID& nid = netData.networkID;
 		const RakNet::PlayerID rid { unsigned(nid.address.v4), nid.port };
 		const char rakOrderingChannel = normalizeOrderingChannelForLegacyClient(channel);
 		const RakNet::PacketReliability reliability = RakNet::RELIABLE;
-		return rakNetServer.RPC(id, (const char*)bs.GetData(), bs.GetNumberOfBitsUsed(), RakNet::HIGH_PRIORITY, reliability, rakOrderingChannel, rid, false, false, RakNet::UNASSIGNED_NETWORK_ID, nullptr);
+		return rakNetServer.RPC(id, (const char*)sendBS->GetData(), sendBS->GetNumberOfBitsUsed(), RakNet::HIGH_PRIORITY, reliability, rakOrderingChannel, rid, false, false, RakNet::UNASSIGNED_NETWORK_ID, nullptr);
 	}
 
 	static void OnPlayerConnect(RakNet::RPCParameters* rpcParams, void* extra);

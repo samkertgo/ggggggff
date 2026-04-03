@@ -8,8 +8,6 @@
 
 #include "playback.hpp"
 #include "record_manager.hpp"
-#include "../NPC/npc.hpp"
-#include "../utils.hpp"
 #include "../npcs_impl.hpp"
 
 NPCPlayback::NPCPlayback(StringView filePath, StringView playbackPath, bool autoUnload, NPCComponent* npcComponent)

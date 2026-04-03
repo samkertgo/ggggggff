@@ -313,6 +313,153 @@ static NetworkBitStream GetBitStream(RakNet::RPCParameters& rpcParams)
 	return bs;
 }
 
+static bool ConvertLegacyOnFootPacket9To207(NetworkBitStream& in, NetworkBitStream& out)
+{
+	uint16_t leftRight = 0;
+	uint16_t upDown = 0;
+	uint16_t keys = 0;
+	Vector3 position {};
+	float qWNeg = 0.0f;
+	float qX = 0.0f;
+	float qY = 0.0f;
+	float qZ = 0.0f;
+	uint16_t health = 0;
+	uint16_t armour = 0;
+	uint8_t weaponAdditional = 0;
+	uint8_t specialAction = 0;
+	Vector3 velocity {};
+	Vector3 surfingOffset {};
+	uint16_t surfingID = 0;
+	uint32_t animationData = 0;
+	uint8_t legacy76 = 0;
+	uint8_t legacy77 = 0;
+
+	if (!in.readUINT16(leftRight)
+		|| !in.readUINT16(upDown)
+		|| !in.readUINT16(keys)
+		|| !in.readVEC3(position)
+		|| !in.readFLOAT(qWNeg)
+		|| !in.readFLOAT(qX)
+		|| !in.readFLOAT(qY)
+		|| !in.readFLOAT(qZ)
+		|| !in.readUINT16(health)
+		|| !in.readUINT16(armour)
+		|| !in.readUINT8(weaponAdditional)
+		|| !in.readUINT8(specialAction)
+		|| !in.readVEC3(velocity)
+		|| !in.readVEC3(surfingOffset)
+		|| !in.readUINT16(surfingID)
+		|| !in.readUINT32(animationData)
+		|| !in.readUINT8(legacy76)
+		|| !in.readUINT8(legacy77))
+	{
+		return false;
+	}
+
+	const uint8_t weapon = weaponAdditional & 0x3F;
+	const uint8_t additionalKey = (weaponAdditional >> 6) & 0x03;
+	const uint8_t clampedHealth = uint8_t(health > 100 ? 100 : health);
+	const uint8_t clampedArmour = uint8_t(armour > 100 ? 100 : armour);
+	const uint16_t animationID = uint16_t(animationData & 0xFFFF);
+	const uint16_t animationFlags = uint16_t((animationData >> 16) & 0xFFFF);
+
+	out.writeUINT8(NetCode::Packet::PlayerFootSync::PacketID); // 207
+	out.writeUINT16(leftRight);
+	out.writeUINT16(upDown);
+	out.writeUINT16(keys);
+	out.writeVEC3(position);
+	out.writeFLOAT(-qWNeg); // legacy packet stores -w
+	out.writeFLOAT(qX);
+	out.writeFLOAT(qY);
+	out.writeFLOAT(qZ);
+	out.writeUINT8(clampedHealth);
+	out.writeUINT8(clampedArmour);
+	out.writeUINT8(uint8_t((additionalKey << 6) | weapon));
+	out.writeUINT8(specialAction);
+	out.writeVEC3(velocity);
+	out.writeVEC3(surfingOffset);
+	out.writeUINT16(surfingID);
+	out.writeUINT16(animationID);
+	out.writeUINT16(animationFlags);
+	return true;
+}
+
+static bool ConvertLegacyInCarPacket3To200(NetworkBitStream& in, NetworkBitStream& out)
+{
+	uint16_t vehicleID = 0;
+	uint16_t leftRight = 0;
+	uint16_t upDown = 0;
+	uint16_t keys = 0;
+
+	float qWNeg = 0.0f;
+	float qX = 0.0f;
+	float qY = 0.0f;
+	float qZ = 0.0f;
+
+	Vector3 position {};
+	Vector3 velocity {};
+
+	uint32_t legacyU32_48 = 0;
+	uint16_t playerHealth16 = 0;
+	uint16_t playerArmour16 = 0;
+	uint8_t additionalKeyWeapon = 0;
+	uint8_t siren = 0;
+	uint8_t landingGear = 0;
+	uint16_t trailerID = 0;
+	uint16_t hydraLo = 0;
+	uint16_t hydraHi = 0;
+
+	// Layout matches client sub_69D5E0() writer.
+	if (!in.readUINT16(vehicleID)
+		|| !in.readUINT16(leftRight)
+		|| !in.readUINT16(upDown)
+		|| !in.readUINT16(keys)
+		|| !in.readFLOAT(qWNeg)
+		|| !in.readFLOAT(qX)
+		|| !in.readFLOAT(qY)
+		|| !in.readFLOAT(qZ)
+		|| !in.readVEC3(position)
+		|| !in.readVEC3(velocity)
+		|| !in.readUINT32(legacyU32_48)
+		|| !in.readUINT16(playerHealth16)
+		|| !in.readUINT16(playerArmour16)
+		|| !in.readUINT8(additionalKeyWeapon)
+		|| !in.readUINT8(siren)
+		|| !in.readUINT8(landingGear)
+		|| !in.readUINT16(trailerID)
+		|| !in.readUINT16(hydraLo)
+		|| !in.readUINT16(hydraHi))
+	{
+		return false;
+	}
+
+	(void)legacyU32_48;
+	const uint8_t hp8 = uint8_t(playerHealth16 > 100 ? 100 : playerHealth16);
+	const uint8_t ar8 = uint8_t(playerArmour16 > 100 ? 100 : playerArmour16);
+	const uint32_t hydra = (uint32_t(hydraHi) << 16) | hydraLo;
+
+	out.writeUINT8(NetCode::Packet::PlayerVehicleSync::PacketID); // 200
+	out.writeUINT16(vehicleID);
+	out.writeUINT16(leftRight);
+	out.writeUINT16(upDown);
+	out.writeUINT16(keys);
+	out.writeFLOAT(-qWNeg); // legacy packet stores -w
+	out.writeFLOAT(qX);
+	out.writeFLOAT(qY);
+	out.writeFLOAT(qZ);
+	out.writeVEC3(position);
+	out.writeVEC3(velocity);
+	out.writeFLOAT(1000.0f); // vehicle health not reliable in this legacy frame
+	out.writeUINT8(hp8);
+	out.writeUINT8(ar8);
+	out.writeUINT8(additionalKeyWeapon);
+	out.writeUINT8(siren);
+	out.writeUINT8(landingGear);
+	out.writeUINT16(trailerID);
+	out.writeUINT32(hydra);
+	return true;
+}
+
 enum LegacyClientVersion
 {
 	LegacyClientVersion_037 = 4057,
@@ -944,24 +1091,59 @@ void RakNetLegacyNetwork::onTick(Microseconds elapsed, TimePoint now)
 		if (player)
 		{
 			const unsigned int bits = pkt->bitSize;
+			const unsigned int bytes = bitsToBytes(bits);
 			NetworkBitStream bs(pkt->data, bitsToBytes(bits), false);
 			bs.SetWriteOffset(bits);
 			uint8_t type;
 			if (bs.readUINT8(type))
 			{
-				// Call event handlers for packet receive
-				const bool res = inEventDispatcher.stopAtFalse([&player, type, &bs](NetworkInEventHandler* handler)
+				NetworkBitStream* dispatchBS = &bs;
+				uint8_t dispatchType = type;
+				NetworkBitStream convertedOnFootBS;
+
+				// Compatibility bridge for clients that send on-foot sync as packet 9.
+				if (type == 9)
+				{
+					bs.SetReadOffset(8); // skip packet id in source stream
+					if (ConvertLegacyOnFootPacket9To207(bs, convertedOnFootBS))
 					{
-						bs.SetReadOffset(8); // Ignore packet ID
-						return handler->onReceivePacket(*player, type, bs);
+						dispatchBS = &convertedOnFootBS;
+						dispatchType = NetCode::Packet::PlayerFootSync::PacketID;
+					}
+					else
+					{
+						rakNetServer.DeallocatePacket(pkt);
+						continue;
+					}
+				}
+				else if (type == 3)
+				{
+					bs.SetReadOffset(8); // skip packet id in source stream
+					if (ConvertLegacyInCarPacket3To200(bs, convertedOnFootBS))
+					{
+						dispatchBS = &convertedOnFootBS;
+						dispatchType = NetCode::Packet::PlayerVehicleSync::PacketID;
+					}
+					else
+					{
+						rakNetServer.DeallocatePacket(pkt);
+						continue;
+					}
+				}
+
+				// Call event handlers for packet receive
+				const bool res = inEventDispatcher.stopAtFalse([&player, dispatchType, dispatchBS](NetworkInEventHandler* handler)
+					{
+						dispatchBS->SetReadOffset(8); // Ignore packet ID
+						return handler->onReceivePacket(*player, dispatchType, *dispatchBS);
 					});
 
 				if (res)
 				{
-					packetInEventDispatcher.stopAtFalse(type, [&player, &bs](SingleNetworkInEventHandler* handler)
+					packetInEventDispatcher.stopAtFalse(dispatchType, [&player, dispatchBS](SingleNetworkInEventHandler* handler)
 						{
-							bs.SetReadOffset(8); // Ignore packet ID
-							return handler->onReceive(*player, bs);
+							dispatchBS->SetReadOffset(8); // Ignore packet ID
+							return handler->onReceive(*player, *dispatchBS);
 						});
 				}
 

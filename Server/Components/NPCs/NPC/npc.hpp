@@ -188,6 +188,10 @@ public:
 
 	float getVehicleHealth() const override;
 
+	void setVehiclePosition(const Vector3& position, bool immediateUpdate) override;
+
+	void setVehicleRotation(const GTAQuat& rotation, bool immediateUpdate) override;
+
 	void setVehicleHydraThrusters(int direction) override;
 
 	int getVehicleHydraThrusters() const override;

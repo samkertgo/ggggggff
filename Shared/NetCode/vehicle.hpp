@@ -208,7 +208,8 @@ namespace RPC
 
 			// Expanded BR tuning fields.
 			payload.fSuspensionForce = 1.0f;
-			payload.fSuspensionCenter = 0.0f;
+			// BR client applies this value directly; zero makes many vehicles nose-down on spawn.
+			payload.fSuspensionCenter = 0.5f;
 			payload.fWheelSize = 1.0f;
 			payload.fWheelScale = 1.0f;
 			payload.fWheelScaleRear = 1.0f;
@@ -224,7 +225,8 @@ namespace RPC
 			payload.dwWheelsWidth = 0x3F800000u; // float 1.0f in raw form
 			payload.bDriftMode = 0;
 			payload.bHornTon = 0;
-			payload.dwStrobesMode = 0;
+			// In BR client, values < 5 force strobe logic on spawn.
+			payload.dwStrobesMode = 5;
 			payload.dwChipMode = 0;
 			payload.bHydauliks = 0;
 			payload.bFar = 0;

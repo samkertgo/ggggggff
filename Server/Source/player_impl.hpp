@@ -1665,6 +1665,11 @@ removeWeapon_has_weapon:
 		return spectateData_;
 	}
 
+	bool isLeavingSpectatorMode() const override
+	{
+		return toSpawn_ && state_ == PlayerState_Spectating;
+	}
+
 	void sendClientCheck(int actionType, int address, int offset, int count) override
 	{
 		NetCode::RPC::ClientCheck rpc;

@@ -8,6 +8,7 @@
 
 #pragma once
 #include <sdk.hpp>
+#include <Server/Components/Actors/actors.hpp>
 #include "npcs_impl.hpp"
 #include <Server/Components/Vehicles/vehicle_models.hpp>
 #define _USE_MATH_DEFINES
