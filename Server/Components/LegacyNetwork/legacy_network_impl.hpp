@@ -319,6 +319,8 @@ public:
 			float angle = 0.0f;
 			uint32_t colour = 0;
 			uint8_t fightingStyle = 4;
+			float health = 100.0f;
+			float armour = 0.0f;
 
 			const int saveOffset = in.GetReadOffset();
 			bool parsed = in.readUINT16(playerId)
@@ -346,13 +348,27 @@ public:
 
 			if (parsed)
 			{
+				const int healthArmourOffset = in.GetReadOffset();
+				float parsedHealth = 0.0f;
+				float parsedArmour = 0.0f;
+				if (in.readFLOAT(parsedHealth) && in.readFLOAT(parsedArmour))
+				{
+					health = parsedHealth;
+					armour = parsedArmour;
+				}
+				else
+				{
+					in.SetReadOffset(healthArmourOffset);
+				}
+				(void)team;
+				(void)colour;
 				compatBS.writeUINT16(playerId);
-				compatBS.writeUINT8(team);
 				compatBS.writeUINT32(skin);
 				compatBS.writeVEC3(pos);
 				compatBS.writeFLOAT(angle);
-				compatBS.writeUINT32(colour);
 				compatBS.writeUINT8(fightingStyle);
+				compatBS.writeFLOAT(health);
+				compatBS.writeFLOAT(armour);
 				sendBS = &compatBS;
 			}
 		}

@@ -75,12 +75,14 @@ namespace RakNet
 		unsigned char legacy8;
 		unsigned short wire9;
 	};
+	static const unsigned short kWireRpcPlayerConnectCompat = 295;
+	static const unsigned short kWireRpcPlayerConnectOpenMp = 420;
 
 	// SA-MP compatibility remap:
 	// internal/server legacy RPC IDs (8-bit) <-> custom wire RPC IDs (9-bit payload).
 	static const RpcIdRemapEntry g_rpcIdRemap[] =
 	{
-		{137,316},{138,324},{139,367},{25,295},{54,517},{53,438},{128,313},{129,366},{118,339},{52,344},
+		{137,316},{138,324},{139,367},{25,kWireRpcPlayerConnectCompat},{25,kWireRpcPlayerConnectOpenMp},{54,517},{53,438},{128,313},{129,366},{118,339},{52,344},
 		{101,371},{26,388},{154,331},{106,431},{132,343},{140,387},{96,376},{32,340},{166,412},{163,354},
 		{164,328},{165,430},{107,440},{37,421},{38,338},{39,404},{155,393},{102,386},{40,367},{130,414},
 		{93,386},{94,365},{95,403},{63,397},{97,394},{152,411},{29,359},{30,359},{50,321},{131,370},
@@ -3480,7 +3482,7 @@ bool RakPeer::HandleRPCPacket( const char *data, int length, PlayerID playerId, 
 		}
 
 #if !RPCID_STRING
-		if (SAMPRakNet::GetCore() && incomingRpcIdRaw9 == 295)
+		if (SAMPRakNet::GetCore() && incomingRpcIdRaw9 == kWireRpcPlayerConnectCompat)
 		{
 			const int prevReadOffset = incomingBitStream.GetReadOffset();
 			const unsigned int payloadBytes = (rpcParms.numberOfBitsOfData + 7) / 8;
@@ -3572,7 +3574,7 @@ bool RakPeer::HandleRPCPacket( const char *data, int length, PlayerID playerId, 
 		// Compatibility fallback: some custom clients may send RPC 295 with empty payload.
 		// Provide a minimal nickname payload so legacy handlers can continue.
 		static const unsigned char kRpc295FallbackNick[] = "Player";
-		if (incomingRpcIdRaw9 == 295)
+		if (incomingRpcIdRaw9 == kWireRpcPlayerConnectCompat)
 		{
 			rpcParms.input = (unsigned char*)kRpc295FallbackNick;
 			rpcParms.numberOfBitsOfData = (sizeof(kRpc295FallbackNick) - 1) * 8;
@@ -3643,7 +3645,7 @@ bool RakPeer::HandleRPCPacket( const char *data, int length, PlayerID playerId, 
 		rpcParms.input=userData;
 		unsigned char* rpcInputOverride = 0;
 #if !RPCID_STRING
-		if (incomingRpcIdRaw9 == 295)
+		if (incomingRpcIdRaw9 == kWireRpcPlayerConnectCompat)
 		{
 			const unsigned int payloadBytes = BITS_TO_BYTES(rpcParms.numberOfBitsOfData);
 			unsigned int nickLen = 0;
@@ -5675,7 +5677,7 @@ namespace RakNet
 							}
 							else if ((unsigned char)(data)[0] == ID_RPC)
 							{
-								// Compatibility: some clients send RPC 295 (ClientJoin) before state settles.
+								// Compatibility: some clients send PlayerConnect in either wire form before state settles.
 								// Accept and process early instead of disconnecting.
 								unsigned short rpcId9 = 0xFFFF;
 								bool parsedRpc = false;
@@ -5690,7 +5692,9 @@ namespace RakNet
 									}
 								}
 
-								if (parsedRpc && rpcId9 == 295 && remoteSystem->sampData.unverifiedRPCs++ < MAX_UNVERIFIED_RPCS)
+								if (parsedRpc
+									&& (rpcId9 == kWireRpcPlayerConnectCompat || rpcId9 == kWireRpcPlayerConnectOpenMp)
+									&& remoteSystem->sampData.unverifiedRPCs++ < MAX_UNVERIFIED_RPCS)
 								{
 									remoteSystem->sampData.authType = SAMPRakNet::AuthType_Player;
 									if (remoteSystem->connectMode == RemoteSystemStruct::UNVERIFIED_SENDER)
